@@ -136,7 +136,7 @@ age <- data2 %>%
              "Mínimo" = min(AGE),
              "1º quartil" = quantile(AGE, probs = 0.25),
              "Mediana" = round( median(AGE), 2 ),
-             "2º quartil" = quantile(AGE, probs = 0.75),
+             "3º quartil" = quantile(AGE, probs = 0.75),
              "Máximo" = max(AGE),
              
   )
@@ -239,7 +239,7 @@ yearsexp <- data2 %>%
              "Mínimo" = min(YEARSEXP),
              "1º quartil" = quantile(YEARSEXP, probs = 0.25),
              "Mediana" = round( median(YEARSEXP), 2 ),
-             "2º quartil" = quantile(YEARSEXP, probs = 0.75),
+             "3º quartil" = quantile(YEARSEXP, probs = 0.75),
              "Máximo" = max(YEARSEXP),
              
   )
@@ -575,6 +575,7 @@ formattable( ENJ2_USERWIKI,
              list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
 
 
+
 ### Step 6: Objective 3 ===========================================================================================
 # 3. Perform other interesting analyzes that present relevant information about the data.
 
@@ -631,7 +632,7 @@ escore_padronizado <- score %>%
              "Mínimo" = min(escore_padronizado),
              "1º quartil" = quantile(escore_padronizado, probs = 0.25),
              "Mediana" = round( median(escore_padronizado), 2 ),
-             "2º quartil" = quantile(escore_padronizado, probs = 0.75),
+             "3º quartil" = quantile(escore_padronizado, probs = 0.75),
              "Máximo" = max(escore_padronizado),
              
   )
@@ -665,11 +666,11 @@ ggplot(recommend_pie, aes(x = "", y = freq, fill = recommend)) +
 
 
 ### Prediction ==========
-
+data2$score <- score$escore_padronizado
 data2$recommend <- as.factor( data2$recommend )
 
 # seed
-set.seed(666)
+set.seed(123)
 
 # train (70%) e test (30%)
 idx = createDataPartition(y = data2$recommend, p = 0.7, list=FALSE)
@@ -712,3 +713,98 @@ head(result_predict_classico)
 
 # Confusion Matrix with Caret
 confusionMatrix(result_predict_classico$actual, as.factor(result_predict_classico$predict))
+
+# # # KNN ==========
+
+# Setting levels for both training and validation data
+levels(train$recommend) <- make.names(levels(factor(train$recommend)))
+levels(test$recommend) <- make.names(levels(factor(test$recommend)))
+
+
+# Setting up train controls
+repeats = 3
+numbers = 10
+tunel = 10
+
+x = trainControl(method = "repeatedcv",
+                 number = numbers,
+                 repeats = repeats,
+                 classProbs = TRUE,
+                 summaryFunction = twoClassSummary)
+
+modelo_knn <- train(recommend ~ AGE + GENDER + DOMAIN + PhD + YEARSEXP + UNIVERSITY + USERWIKI,
+                    data = train, method = "knn",
+                    preProcess = c("center","scale"),
+                    trControl = x,
+                    metric = "ROC",
+                    tuneLength = tunel)
+
+# Summary of model
+modelo_knn
+plot(modelo_knn)
+
+# prediction
+pred_knn <- predict(modelo_knn,test)
+
+result_predict_classico_knn <- data.frame(actual = test$recommend,
+                                           predict = pred_knn)
+
+# Gerando Confusion Matrix com o Caret
+confusionMatrix(result_predict_classico_knn$actual,
+                as.factor(result_predict_classico_knn$predict))
+
+
+### ensemble - bagging ==========
+
+# library( ensembleR )
+# 
+# preds <- ensemble( train,
+#                  test,
+#                  'recommend',
+#                  c('treebag','knn','svmLinear'),
+#                  'rf'
+#                  )
+# table( preds )
+
+library(ipred)
+
+mod_bag = bagging( recommend ~ AGE + GENDER + DOMAIN + PhD + YEARSEXP + UNIVERSITY + USERWIKI,
+              data = train,
+              nbagg = 50,
+              coob = T)
+print( mod_bag )
+
+pred_bag = predict(mod_bag, test)
+
+result_predict_classico_bag <- data.frame(actual = test$recommend,
+                                          predict = pred_bag)
+
+# Gerando Confusion Matrix com o Caret
+confusionMatrix(result_predict_classico_bag$actual,
+                as.factor(result_predict_classico_bag$predict))
+
+
+### regression ==========
+
+mod_lm = lm( score ~ AGE + GENDER + DOMAIN + PhD + YEARSEXP + UNIVERSITY + USERWIKI,
+           data = train )
+summary(mod_lm) # remove YEARSEXP 
+
+mod2_lm = lm( score ~ AGE + GENDER + DOMAIN + PhD + UNIVERSITY + USERWIKI,
+            data = train )
+summary(mod2_lm) # remove UNIVERSITY 
+
+mod3_lm = lm( score ~ AGE + GENDER + DOMAIN + PhD + USERWIKI,
+            data = train )
+summary(mod3_lm) 
+
+model_lm = mod3_lm
+
+#predictions
+pred_lm <- round( predict(mod_lm, test, type = "response") )
+
+ER <- function(est, real){
+  return( 100*abs(est-real)/real )
+}
+
+mean( ER( pred_lm, test$score ) )
