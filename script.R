@@ -14,6 +14,8 @@ options( scipen = 999, OutDec = "," )
 rp <- c("dplyr", "tidyr", "tidyverse", "xtable", "data.table", "formattable", "ggplot2")
 lapply(rp, library, character.only = TRUE) # load the required packages
 library(doBy) # the package to use recodeVar function
+library(caret)
+
 ### Step 2 : import datasets ======================================================================================
 
 data <- fread("wiki4HE.csv")
@@ -318,37 +320,259 @@ formattable( userwiki,
 # ENJ1: The use of Wikipedia stimulates curiosity
 # ENJ2: The use of Wikipedia is entertaining
 
-### ENJ1 ==========
+### ENJ1 ===============================================================
 
-ENJ1 <- data2 %>% 
+levels( data2$ENJ1 ) = c( "Discordo Totalmente", "Discordo Parcialmente",
+                          "Não concordo, nem discordo",
+                          "Concordo Parcialmente", "Concordo Totalmente")
+
+### ENJ1 by gender ==========
+
+ENJ1_gender <- data2 %>% 
   drop_na(ENJ1) %>% # drop 7 observations
   group_by(GENDER, ENJ1) %>%
   summarise(n = n()) %>%
   mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ1
 
-# # pie chart
-
-ENJ1_pie <- ENJ1 %>%
-  arrange(GENDER, desc(ENJ1)) %>%
-  mutate(freq = round(n / sum(n) * 100, 2), lab.ypos = cumsum(freq) - 0.5*freq)
-ENJ1_pie 
-
-ggplot(ENJ1_pie, aes(x = GENDER, y = freq, fill = ENJ1)) +
-  geom_bar(width = 1, stat = "identity", color = "white") +
-  labs(fill = "Usa Wikipedia?") + 
-  coord_polar("y", start = 0) +
-  geom_text( aes(y = lab.ypos, label = paste0(freq,"%") ), color = "white", size = 7) +
+ggplot( ENJ1_gender, aes(x = GENDER, y = freq, fill = ENJ1) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Gênero" ) + 
   scale_fill_manual(values = mycols) +
-  theme_void() +
+  theme_classic() +
   theme(legend.title = element_text(size = 15),
-        legend.text = element_text(size = 15))
+        legend.text = element_text(size = 15),
+        text = element_text(size=30))
 
 # # table
-names(ENJ1) <- c( "Usa Wikipedia?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+names(ENJ1_gender) <- c( "Gênero", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
 
-formattable( ENJ1, 
-             align = c("l", rep("r", NCOL(ENJ1) - 1)), 
+formattable( ENJ1_gender, 
+             align = c("l", rep("r", NCOL(ENJ1_gender) - 1)), 
              list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ1 
+
+### ENJ1 by DOMAIN ==========
+
+ENJ1_DOMAIN <- data2 %>% 
+  drop_na(ENJ1) %>% # drop 7 observations
+  group_by(DOMAIN, ENJ1) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ1
+
+ggplot( ENJ1_DOMAIN, aes(x = DOMAIN, y = freq, fill = ENJ1) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Área do Conhecimento" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 10),
+        axis.text.x = element_text(angle=45, hjust=1))
+
+# # table
+names(ENJ1_DOMAIN) <- c( "Área do Conhecimento", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ1_DOMAIN, 
+             align = c("l", rep("r", NCOL(ENJ1_DOMAIN) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ1 
+
+### ENJ1 by PhD ==========
+
+ENJ1_PhD <- data2 %>% 
+  drop_na(ENJ1) %>% # drop 7 observations
+  group_by(PhD, ENJ1) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ1
+
+ggplot( ENJ1_PhD, aes(x = PhD, y = freq, fill = ENJ1) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Possui PhD?" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ1_PhD) <- c( "Possui Doutorado?", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ1_PhD, 
+             align = c("l", rep("r", NCOL(ENJ1_PhD) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ1 
+
+### ENJ1 by UNIVERSITY ==========
+
+ENJ1_UNIVERSITY <- data2 %>% 
+  drop_na(ENJ1) %>% # drop 7 observations
+  group_by(UNIVERSITY, ENJ1) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ1
+
+ggplot( ENJ1_UNIVERSITY, aes(x = UNIVERSITY, y = freq, fill = ENJ1) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Universidade em que leciona" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ1_UNIVERSITY) <- c( "Universidade", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ1_UNIVERSITY, 
+             align = c("l", rep("r", NCOL(ENJ1_UNIVERSITY) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ1 
+
+### ENJ1 by USERWIKI ==========
+
+ENJ1_USERWIKI <- data2 %>% 
+  drop_na(ENJ1) %>% # drop 7 observations
+  group_by(USERWIKI, ENJ1) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ1
+
+ggplot( ENJ1_USERWIKI, aes(x = USERWIKI, y = freq, fill = ENJ1) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "É usuário da Wikipédia?" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ1_USERWIKI) <- c( "É usuário da Wikipédia?", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ1_USERWIKI, 
+             align = c("l", rep("r", NCOL(ENJ1_USERWIKI) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ1 
+
+### ENJ2 ===============================================================
+
+levels( data2$ENJ2 ) = c( "Discordo Totalmente", "Discordo Parcialmente",
+                          "Não concordo, nem discordo",
+                          "Concordo Parcialmente", "Concordo Totalmente")
+
+### ENJ2 by gender ==========
+
+ENJ2_gender <- data2 %>% 
+  drop_na(ENJ2) %>% # drop 7 observations
+  group_by(GENDER, ENJ2) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ2
+
+ggplot( ENJ2_gender, aes(x = GENDER, y = freq, fill = ENJ2) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Gênero" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size=30))
+
+# # table
+names(ENJ2_gender) <- c( "Gênero", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ2_gender, 
+             align = c("l", rep("r", NCOL(ENJ2_gender) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
+
+### ENJ2 by DOMAIN ==========
+
+ENJ2_DOMAIN <- data2 %>% 
+  drop_na(ENJ2) %>% # drop 7 observations
+  group_by(DOMAIN, ENJ2) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ2
+
+ggplot( ENJ2_DOMAIN, aes(x = DOMAIN, y = freq, fill = ENJ2) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Área do Conhecimento" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 10),
+        axis.text.x = element_text(angle=45, hjust=1))
+
+# # table
+names(ENJ2_DOMAIN) <- c( "Área do Conhecimento", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ2_DOMAIN, 
+             align = c("l", rep("r", NCOL(ENJ2_DOMAIN) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
+
+### ENJ2 by PhD ==========
+
+ENJ2_PhD <- data2 %>% 
+  drop_na(ENJ2) %>% # drop 7 observations
+  group_by(PhD, ENJ2) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ2
+
+ggplot( ENJ2_PhD, aes(x = PhD, y = freq, fill = ENJ2) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Possui PhD?" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ2_PhD) <- c( "Possui Doutorado?", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ2_PhD, 
+             align = c("l", rep("r", NCOL(ENJ2_PhD) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
+
+### ENJ2 by UNIVERSITY ==========
+
+ENJ2_UNIVERSITY <- data2 %>% 
+  drop_na(ENJ2) %>% # drop 7 observations
+  group_by(UNIVERSITY, ENJ2) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ2
+
+ggplot( ENJ2_UNIVERSITY, aes(x = UNIVERSITY, y = freq, fill = ENJ2) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "Universidade em que leciona" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ2_UNIVERSITY) <- c( "Universidade", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ2_UNIVERSITY, 
+             align = c("l", rep("r", NCOL(ENJ2_UNIVERSITY) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
+
+### ENJ2 by USERWIKI ==========
+
+ENJ2_USERWIKI <- data2 %>% 
+  drop_na(ENJ2) %>% # drop 7 observations
+  group_by(USERWIKI, ENJ2) %>%
+  summarise(n = n()) %>%
+  mutate( freq = n / sum(n)  )  # table of frequency and relative frequency to ENJ2
+
+ggplot( ENJ2_USERWIKI, aes(x = USERWIKI, y = freq, fill = ENJ2) ) +
+  geom_bar(stat = "identity", color = "white" ) +
+  labs(fill = "É interessante?", y = "Frequência Relativa", x = "É usuário da Wikipédia?" ) + 
+  scale_fill_manual(values = mycols) +
+  theme_classic() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        text = element_text(size = 30))
+
+# # table
+names(ENJ2_USERWIKI) <- c( "É usuário da Wikipédia?", "É interessante?", "Freq. Absoluta", "Freq. Relativa" ) # modifying table's names
+
+formattable( ENJ2_USERWIKI, 
+             align = c("l", rep("r", NCOL(ENJ2_USERWIKI) - 1)), 
+             list( `Freq. Relativa` = percent ) )  # table of frequency and relative frequency to ENJ2 
 
 
 ### Step 6: Objective 3 ===========================================================================================
@@ -366,6 +590,9 @@ formattable( ENJ1,
 
 ### calculating score
 # max: 100 | min: 0
+
+levels( data2$ENJ1 ) = 1:5
+levels( data2$ENJ2 ) = 1:5
 
 score <- as.data.frame( apply( data2[,8:50], 2, as.numeric  ) ) - 1
 score$Qu4 <- recodeVar( score$Qu4, c(0,1,2,3,4), c(4,3,2,1,0) ) # recoding QU4, because agree with that question is a "bad thing"
@@ -439,4 +666,49 @@ ggplot(recommend_pie, aes(x = "", y = freq, fill = recommend)) +
 
 ### Prediction ==========
 
+data2$recommend <- as.factor( data2$recommend )
 
+# seed
+set.seed(666)
+
+# train (70%) e test (30%)
+idx = createDataPartition(y = data2$recommend, p = 0.7, list=FALSE)
+train = data2[idx, ]
+test = data2[-idx, ]
+
+# # # Regressao Logistica ============
+
+mod = glm( recommend ~ AGE + GENDER + DOMAIN + PhD + YEARSEXP + UNIVERSITY + USERWIKI,
+           data = train, family = binomial( link = "logit" ) )
+summary(mod) # remove YEARSEXP 
+
+mod2 = glm( recommend ~ AGE + GENDER + DOMAIN + PhD + UNIVERSITY + USERWIKI,
+           data = train, family = binomial( link = "logit" ) )
+summary(mod2) # remove UNIVERSITY 
+
+mod3 = glm( recommend ~ AGE + GENDER + DOMAIN + PhD + USERWIKI,
+            data = train, family = binomial( link = "logit" ) )
+summary(mod3) # remove GENDER 
+
+mod4 = glm( recommend ~ AGE  + DOMAIN + PhD + USERWIKI,
+            data = train, family = binomial( link = "logit" ) )
+summary(mod4) 
+
+model = mod4
+
+#predictions
+pred <- predict(model, test, type = "response")
+
+# transform prediction into classification
+prediction <- as.numeric(pred > 0.5)
+
+result_predict_classico <- data.frame(actual = as.factor( as.numeric(test$recommend) - 1 ),
+                                       predict = as.factor(prediction))
+
+head(result_predict_classico)
+
+# Label 1 - Recommend wikipedia
+# Label 0 - Do not recommend wikipedia
+
+# Confusion Matrix with Caret
+confusionMatrix(result_predict_classico$actual, as.factor(result_predict_classico$predict))
